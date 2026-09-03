@@ -210,4 +210,7 @@ function makeShadowSet(capacity) {
   ];
 }
 
-module.exports = { makeShadowSet, beladyOptimal, LRUPolicy, FIFOPolicy, MRUPolicy, RandomPolicy, ClockPolicy };
+const API = { makeShadowSet, beladyOptimal, LRUPolicy, FIFOPolicy, MRUPolicy, RandomPolicy, ClockPolicy };
+
+if (typeof module === 'object' && module.exports) module.exports = API;
+else globalThis.LRUPolicies = API;

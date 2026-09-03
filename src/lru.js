@@ -242,4 +242,11 @@ class LRUIndex {
   }
 }
 
-module.exports = { LRUIndex, Entry };
+// Usable from Node (require) and from a plain browser <script>. The browser
+// build runs this exact file, so the deployed page and the test suite are
+// exercising one implementation, not two that resemble each other.
+if (typeof module === 'object' && module.exports) {
+  module.exports = { LRUIndex, Entry };
+} else {
+  globalThis.LRUCore = { LRUIndex, Entry };
+}

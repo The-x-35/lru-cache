@@ -117,10 +117,13 @@ lives in `diskstore.js`, and `cache.js` composes the two.
 | `src/cache.js` | Composes policy + disk. Single-flight, metrics, eviction → `unlink`. |
 | `src/pool.js`, `src/worker.js` | Real thread pool. Cost is calibrated at boot, so the UI asks for a fault "costing 90 ms" and gets it. |
 | `src/policies.js` | Shadow simulators — FIFO, CLOCK, RANDOM, MRU, Belady's OPT — replaying the same trace. |
-| `src/sources.js` | The bundled trace and the live process reader. |
+| `src/sample-trace.js` | The bundled deterministic trace. Pure, and loaded by both builds. |
+| `src/sources.js` | The live process reader (server build only). |
 | `src/workload.js` | Synthetic request patterns. |
 | `server.js` | HTTP + Server-Sent Events. No framework. |
-| `public/` | The UI — one HTML file, one stylesheet, one script. |
+| `public/` | The server build's UI. |
+| `web/` | The browser build: `store.js` (IndexedDB), `pool.js` + `rebuild-worker.js` (Web Workers), `cache.js`, `sources.js`, `app.js`. |
+| `scripts/build-web.js` | Copies `web/` and the three shared modules into `dist/`. |
 
 ## Reading the process table
 
@@ -164,7 +167,7 @@ to the sample processes. It never crashes and never hangs.
 npm test
 ```
 
-50 tests in three layers:
+59 tests in four layers:
 
 - **`test/lru.test.js`** (17) — the algorithm. Every mutation is followed by a
   structural `validate()`, plus a 4,000-operation randomized run checked
@@ -174,44 +177,68 @@ npm test
   reconcile, a flush cancels in-flight faults.
 - **`test/server.test.js`** (20) — boots a real server on a spare port and
   asserts the two modes cannot affect each other.
+- **`test/build.test.js`** (9) — the static build. Asserts `dist/lru.js` is
+  byte-identical to `src/lru.js`, that the shared modules touch no Node
+  builtins, that every browser module stays scope-isolated, and that the page
+  pulls nothing from a CDN.
 
 Two results are asserted against published numbers. The textbook reference
 string `1 2 3 4 1 2 5 1 2 3 4 5` at 3 frames gives **LRU 10 faults, FIFO 9,
 OPT 7** — LRU losing to FIFO is **Belady's anomaly**, reproduced live. And a
 scan one page wider than the cache hits **exactly zero**.
 
-## Configuration
+## Deployment
+
+### Static hosting (Vercel, Netlify, GitHub Pages, any CDN)
+
+The browser build is a self-contained static site — no server, no
+dependencies, no external requests.
+
+```bash
+npm run build     # -> dist/
+```
+
+`vercel.json` is already set up (`buildCommand: npm run build`,
+`outputDirectory: dist`), so on Vercel it is just:
+
+```bash
+vercel --prod
+```
+
+or point Vercel at the GitHub repo and let it build. Leave the framework
+preset as **Other** — there is nothing to detect.
+
+> If you deploy the repo *without* that config, Vercel finds `server.js`,
+> wraps it as a serverless function and it crashes with
+> `FUNCTION_INVOCATION_FAILED`. That is expected: the server build calls
+> `listen()`, spawns worker threads and writes files, none of which a
+> serverless function can do. The static build is what belongs on a CDN.
+
+### Persistent hosting (Render, Railway, Fly.io, a VPS, a container)
+
+The server build needs a process that stays alive, and in exchange you get
+real files on disk and the real process table:
+
+```bash
+PORT=8080 STORE_DIR=/var/lib/pagecache node server.js
+```
 
 | variable | default | meaning |
 |---|---|---|
 | `PORT` | `7070` | HTTP port |
 | `STORE_DIR` | `./.pagecache` | where page files and indexes live |
 
-## Deployment
+### What the browser build gives up
 
-This is a **stateful long-running server**, and that is not incidental — the
-recency list lives in memory, pages live on a real filesystem, the thread pool
-is persistent, and the UI is fed by a long-lived SSE stream.
-
-It runs unchanged on anything that gives you a persistent Node process:
-Render, Railway, Fly.io, a container, or any VPS.
-
-```bash
-PORT=8080 STORE_DIR=/var/lib/pagecache node server.js
-```
-
-It will **not** work on a serverless platform such as Vercel Functions, and
-not because of a missing config file — the architecture is the mismatch. Each
-invocation is a fresh, isolated instance, so there is no shared cache to
-promote entries in; the filesystem is read-only apart from `/tmp`, which is
-per-instance and discarded; and an SSE stream would hold a function invocation
-open against its timeout. A cache with no shared state is not a cache.
-
-To put this on Vercel, the cache has to move into the browser: the same
-`src/lru.js`, IndexedDB in place of the page files, and a Web Worker doing
-WebCrypto for the rebuild cost. That version is a static site and deploys
-anywhere — it just cannot read your process table, since browsers have no
-access to it.
+- **It cannot read your process table.** No browser exposes it. Rather than
+  invent one, "This browser" uses what the browser genuinely measures: the
+  assets this page actually loaded, weighted by their real transfer sizes,
+  alongside real core and memory counts.
+- **A cached read is slower** — around 2–4 ms from IndexedDB versus 0.2 ms
+  from the filesystem. The gap against a rebuild is still ~50×, and every
+  number is still measured.
+- **It needs IndexedDB.** Some private-browsing modes block it; the page says
+  so plainly instead of failing silently.
 
 ## License
 

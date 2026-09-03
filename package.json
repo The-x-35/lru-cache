@@ -7,7 +7,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/lru.test.js && node test/cache.test.js && node test/server.test.js"
+    "build": "node scripts/build-web.js",
+    "serve:web": "node scripts/build-web.js && node scripts/serve-web.js",
+    "test": "node test/lru.test.js && node test/cache.test.js && node test/server.test.js && node test/build.test.js"
   },
   "engines": {
     "node": ">=18"
