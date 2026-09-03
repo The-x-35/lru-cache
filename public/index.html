@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<title>LRU cache</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="bg" aria-hidden="true"><span></span><span></span><span></span></div>
+
+<main>
+
+  <header>
+    <h1>LRU&nbsp;cache</h1>
+    <p class="sub">Keeps the pages you used most recently. Drops the one you touched longest ago.</p>
+    <div class="seg" role="tablist">
+      <button class="on" data-source="sample" role="tab">Sample</button>
+      <button data-source="live" role="tab">This device</button>
+    </div>
+    <p class="srcline" id="srcline"></p>
+  </header>
+
+  <!-- one glass panel, three numbers -->
+  <section class="glass stats">
+    <div>
+      <b id="s-rate">—</b>
+      <i>found in cache</i>
+    </div>
+    <div>
+      <b id="s-fast">—</b>
+      <i>when cached</i>
+    </div>
+    <div>
+      <b id="s-slow">—</b>
+      <i>when not</i>
+    </div>
+  </section>
+
+  <!-- the cache -->
+  <section class="glass cache">
+    <div class="bar">
+      <button id="b-play" class="fill">Start</button>
+      <button id="b-step">Step</button>
+      <button id="b-clear" class="plain">Empty</button>
+      <label class="room">
+        <span id="v-cap">12</span> pages
+        <input type="range" id="i-cap" min="3" max="24" value="12">
+      </label>
+    </div>
+
+    <div class="rail"><span>just used</span><span class="r">dropped next</span></div>
+    <div class="chain" id="chain"></div>
+
+    <p class="says" id="says">Press <b>Start</b> to send pages through the cache.</p>
+  </section>
+
+  <details id="more">
+    <summary>Details</summary>
+
+    <section class="glass det">
+      <div class="meter"><i id="m-hit"></i></div>
+      <div class="legend">
+        <span><s class="h"></s>found <b id="n-hit">0</b></span>
+        <span><s class="m"></s>rebuilt <b id="n-miss">0</b></span>
+      </div>
+      <dl id="dl-counts"></dl>
+    </section>
+
+    <section class="glass det">
+      <h3>CPU threads</h3>
+      <div id="lanes"></div>
+      <p class="hint" id="hint-threads"></p>
+    </section>
+
+    <section class="glass det">
+      <h3>If it dropped a different page</h3>
+      <div id="policies"></div>
+      <p class="hint" id="hint-pol"></p>
+    </section>
+
+    <section class="glass det">
+      <h3>Request order</h3>
+      <div class="pats" id="pats"></div>
+    </section>
+
+  </details>
+
+</main>
+<script src="/app.js"></script>
+</body>
+</html>

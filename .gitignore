@@ -1,0 +1,10 @@
+# runtime cache — page files and indexes are generated at runtime
+.pagecache/
+
+node_modules/
+npm-debug.log*
+
+.DS_Store
+*.swp
+.idea/
+.vscode/

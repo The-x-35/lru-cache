@@ -1,0 +1,15 @@
+{
+  "name": "lru-cache-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A working LRU cache demo: entries are real files on disk, misses do real CPU work on worker threads",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/lru.test.js && node test/cache.test.js && node test/server.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
