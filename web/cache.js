@@ -88,7 +88,15 @@ class BrowserLRUCache {
 
   /** Rebuild the recency list from whatever survived in storage. */
   async init() {
-    const { entries, dropped } = await this.store.loadIndex(this.mode);
+    const { entries, dropped, config } = await this.store.loadIndex(this.mode);
+
+    // Restore the capacity the user last chose. It is saved with the index;
+    // not reading it back meant the setting silently reset on every reload.
+    if (config && Number.isFinite(config.capacity)) {
+      this.lru.capacity = Math.max(1, config.capacity | 0);
+      for (const p of this.shadows) p.resize(this.lru.capacity);
+    }
+
     // Admit in reverse so each admit pushes to the head and the saved order
     // comes back intact.
     for (let i = entries.length - 1; i >= 0; i--) {

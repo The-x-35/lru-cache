@@ -137,6 +137,7 @@ class PageStore {
           key: f.key, bytes: f.bytes, hits: 0, insertedAt: f.at, usedAt: f.at,
         })),
         dropped: 0,
+        config: null,
       };
     }
 
@@ -156,7 +157,7 @@ class PageStore {
       if (!claimed.has(key)) { await this.deletePage(mode, key); dropped += 1; }
     }
 
-    return { entries, dropped };
+    return { entries, dropped, config: doc.config || null };
   }
 
   /** What the browser reports this origin is using overall. */

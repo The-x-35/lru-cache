@@ -41,18 +41,28 @@ class WorkerPool {
     return Math.max(1000, Math.round(this.faultCostMs * this.itersPerMs));
   }
 
-  /* Measure this device's PBKDF2 throughput, so the UI can ask for a rebuild
-     "costing ~90ms" and get it on a phone as well as a laptop. */
+  /*
+   * Measure how fast this device really rebuilds a page — by rebuilding one.
+   *
+   * Earlier versions timed a single un-chunked PBKDF2 call on the main thread
+   * and extrapolated. That mispredicts badly in both directions: cold, it
+   * understates the device (90ms requested, 40ms delivered); warm, it
+   * overstates it, because the worker splits the work into chunks to report
+   * progress and each chunk carries its own setup cost (90ms requested, 210ms
+   * delivered). Timing the actual worker path removes the guesswork.
+   */
   async calibrate() {
-    const probe = 30000;
-    const enc = new TextEncoder();
-    const key = await crypto.subtle.importKey('raw', enc.encode('calibration'), 'PBKDF2', false, ['deriveBits']);
-    const t = performance.now();
-    await crypto.subtle.deriveBits(
-      { name: 'PBKDF2', salt: enc.encode('salt'), iterations: probe, hash: 'SHA-256' }, key, 256,
-    );
-    const ms = performance.now() - t;
-    if (ms > 0.5) this.itersPerMs = Math.max(200, probe / ms);
+    const probe = 150000;
+    let best = Infinity;
+
+    for (let i = 0; i < 2; i++) {
+      try {
+        const r = await this.submit('__calibrate__' + i, probe);
+        if (r.computeMs > 1) best = Math.min(best, r.computeMs);
+      } catch { /* keep the default rather than failing to start */ }
+    }
+
+    if (Number.isFinite(best)) this.itersPerMs = Math.max(200, probe / best);
     return this.itersPerMs;
   }
 
@@ -116,9 +126,13 @@ class WorkerPool {
 
   // ---------------------------------------------------------------- dispatch
 
-  submit(key) {
+  submit(key, iterations) {
     return new Promise((resolve, reject) => {
-      const job = { id: this.nextId++, key, resolve, reject, enqueuedAt: performance.now(), startedAt: 0 };
+      const job = {
+        id: this.nextId++, key, resolve, reject,
+        enqueuedAt: performance.now(), startedAt: 0,
+        iterations,                      // set only by calibrate()
+      };
       this.jobs.set(job.id, job);
       this.queue.push(job);
       this.peakQueue = Math.max(this.peakQueue, this.queue.length);
@@ -146,7 +160,8 @@ class WorkerPool {
 
       slot.worker.postMessage({
         type: 'materialize', id: job.id, key: job.key,
-        iterations: this.iterations, pageSize: this.pageSize,
+        iterations: job.iterations || this.iterations,
+        pageSize: this.pageSize,
       });
     }
   }
